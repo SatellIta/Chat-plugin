@@ -12,7 +12,7 @@ export function supportGuoba() {
       isV2: false,
       description: '简洁的AI聊天插件',
       icon: 'mdi:cat',
-      iconColor: '#6bb9dd',
+      iconColor: '#f77fbe', // 保持和 cfg_default.json 中一致的颜色
     },
     configInfo: {
       schemas: [{
@@ -64,6 +64,35 @@ export function supportGuoba() {
             ],
           }
         },
+
+        // ==================================================
+        //  新增：总结配置区域
+        // ==================================================
+        {
+          label: '总结配置 (省流)',
+          component: 'SOFT_GROUP_BEGIN'
+        },
+        {
+          field: 'summaryHistoryCount',
+          label: '总结聊天记录条数',
+          bottomHelpMessage: '总结时附加的最近聊天记录条数 (10 ~ 300)',
+          component: "InputNumber",
+          componentProps: {
+            min: 10,
+            max: 300,
+            placeholder: "100"
+          }
+        },
+        {
+          field: 'summaryPrompt',
+          label: '总结 Prompt 设置',
+          bottomHelpMessage: '用于指导 AI 如何进行总结的系统级指令',
+          component: "InputTextArea",
+          componentProps: {
+            placeholder: "你现在是qq群聊里面的群聊助手，负责总结聊天记录和提取关键信息..."
+          }
+        },
+        // ==================================================
 
         {
           label: '伪人配置',
