@@ -19,5 +19,7 @@ pnpm install
 ```
 
 ## 其他
-原作者交流群：[893157055](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=BWtOJkAHVX20OlQqgAIPn7UID9LtigSg&group_code=893157055)  
+原作者：天如
+原作者主页：https://gitee.com/HDTianRu
+ 
 欢迎提issue或者直接pull request也是可以的~
