@@ -60,7 +60,7 @@ export default class summarize extends plugin {
 
       // 获取聊天记录
       const chatHistory = await this.getChatHistory(e)
-      console.log(chatHistory)
+      //console.log(chatHistory)
 
       if (chatHistory.length === 0) {
         e.reply('没有最近的聊天记录可以总结哦~')
@@ -121,7 +121,7 @@ export default class summarize extends plugin {
   // 格式化聊天记录
   formatHistoryMessage(e, msg) {
     // 忽略非文本、空消息或命令消息
-    if (!msg || !msg.message || typeof msg.raw_message !== 'string' || !msg.raw_message.trim()) {
+    if (!msg || !msg.message || typeof msg.raw_message !== 'string' || !msg.raw_message.trim() || msg.raw_message.startsWith('#')) {
       return null
     }
 
