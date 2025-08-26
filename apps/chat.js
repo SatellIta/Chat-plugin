@@ -4,23 +4,10 @@ import {
   pluginName
 } from '../config/constant.js'
 import {
-  split
+  split,
+  recall,
+  sleep
 } from '../model/utils.js'
-
-const recall = async (e, promise, time) => {
-  const res = await promise
-  if (!res.message_id || !time) return
-  if (e.group?.recallMsg)
-    setTimeout(() =>
-      e.group.recallMsg(res.message_id), time * 1000)
-  else if (e.friend?.recallMsg)
-    setTimeout(() =>
-      e.friend.recallMsg(res.message_id), time * 1000)
-}
-
-const sleep = async (time) => {
-  return new Promise(e => setTimeout(e, time))
-}
 
 export default class chat extends plugin {
   constructor(e) {
@@ -55,6 +42,7 @@ export default class chat extends plugin {
     return this.processChat(e, content, 'active')
   }
 
+  // 接受除了#chat以外的消息，用于相应@消息，实现伪人模式，判断黑白名单
   async accept(e) {
     if (!e.msg || typeof e.msg !== 'string' || !e.msg.trim() || e.msg.startsWith('#') || e.user_id == e.self_id) {
       return false
@@ -135,6 +123,7 @@ export default class chat extends plugin {
     return false
   }
 
+  // 判断是否触发伪人模式
   shouldTriggerPseudo(e) {
     const userId = e.user_id
     const groupId = e.group_id
@@ -167,6 +156,7 @@ export default class chat extends plugin {
     return true
   }
 
+  // 结束当前对话
   async endConversation(e) {
     const cacheKey = this.getCacheKey(e)
     try {
@@ -180,6 +170,7 @@ export default class chat extends plugin {
     }
   }
 
+  // 结束全部对话
   async endAllConversations(e) {
     if (!e.isMaster) {
       e.reply('只有Bot主人才能结束全部对话')
@@ -200,6 +191,7 @@ export default class chat extends plugin {
     }
   }
 
+  // 处理聊天消息
   async processChat(e, content, interactionType = 'active') {
     try {
       const {
@@ -271,10 +263,12 @@ export default class chat extends plugin {
     }
   }
 
+  // 获取redis缓存键
   getCacheKey(e) {
     return `${this.redisKeyPrefix}${e.isGroup ? `group:${e.group_id}` : `private:${e.user_id}`}`
   }
 
+  // 更新缓存
   async updateCache(e, key, messages) {
     const cacheExpire = Cfg.get('cacheExpireMinutes', 30, e) * 60
     const maxContextLength = Cfg.get('maxContextLength', 10, e)
@@ -300,6 +294,7 @@ export default class chat extends plugin {
     }
   }
 
+  // 获取缓存
   async getCache(key) {
     try {
       const data = await redis.get(key)
@@ -310,6 +305,7 @@ export default class chat extends plugin {
     }
   }
 
+  // 获取聊天记录
   async getChatHistory(e) {
     const historyCount = Cfg.get('historyCount', 10, e)
     let history = []
@@ -337,6 +333,7 @@ export default class chat extends plugin {
     return history
   }
 
+  // 格式化聊天记录信息
   formatHistoryMessage(e, msg) {
     if (!msg || !msg.message || typeof msg.raw_message !== 'string' || !msg.raw_message.trim()) {
       return null
@@ -372,6 +369,7 @@ export default class chat extends plugin {
     }
   }
 
+  // 构建初始消息，先添加系统提示词
   buildInitialMessages(e, interactionType) {
     let messages = []
     const systemPrompt = Cfg.get('prompt', '', e)
@@ -388,7 +386,7 @@ export default class chat extends plugin {
     return messages
   }
 
-
+  // 格式化处理用户信息
   formatUserMessage(e, content) {
     let userMessageContent = content
     if (e.isGroup) {
@@ -433,6 +431,7 @@ export default class chat extends plugin {
     }
   }
 
+  // 根据私聊|群聊|伪人等模式，获取上下文信息
   getContextInfo(e, interactionType) {
     const aiName = Cfg.get('aiName', 'AI助手', e)
     let baseInfo = `机器人名字: ${e.bot?.info?.nickname}\n你的名字: ${aiName}\n`

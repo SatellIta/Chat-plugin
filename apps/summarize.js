@@ -3,23 +3,9 @@ import OpenAI from '../model/openai.js'
 import {
   pluginName
 } from '../config/constant.js'
-
-// 用于撤回消息
-const recall = async (e, promise, time) => {
-  const res = await promise
-  if (!res.message_id || !time) return
-  if (e.group?.recallMsg)
-    setTimeout(() =>
-      e.group.recallMsg(res.message_id), time * 1000) 
-  else if (e.friend?.recallMsg)
-    setTimeout(() =>
-      e.friend.recallMsg(res.message_id), time * 1000)
-}
-
-// 用于延迟
-const sleep = async (time) => {
-  return new Promise(e => setTimeout(e, time))
-}
+import {
+  recall
+} from '../model/utils.js'
 
 // 总结类
 export default class summarize extends plugin {
@@ -49,7 +35,7 @@ export default class summarize extends plugin {
 
   // 处理聊天记录
   async processChatHistory(e) {
-    e.reply('正在努力总结中，请稍候...', true) // true 表示会引用用户消息
+    e.recall(e, e.reply('正在努力总结中，请稍候...', true), 30) // true 表示会引用用户消息
     try {
       // 获取总结系统提示词
       const prompt = Cfg.get('summaryPrompt', '', e)
@@ -72,8 +58,8 @@ export default class summarize extends plugin {
       const requestOptions = {
         messages: messages,
         model: Cfg.get('model', 'gpt-3.5-turbo', e),
-        temperature: Cfg.get('temperature', 0.7, e),
-        max_tokens: Cfg.get('maxTokens', 1000, e)
+        temperature: Cfg.get('summaryTemperature', 0.7, e),
+        max_tokens: Cfg.get('summaryMaxTokens', 1000, e)
       }
 
       const response = await OpenAI.chat(requestOptions)

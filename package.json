@@ -1,17 +1,22 @@
 {
-  "name": "Chat-plugin",
+  "name": "chat-plugin",
   "version": "1.0.0",
-  "description": "简洁的AI插件",
+  "description": "一个AI聊天、总结聊天记录插件",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "HDTianRu",
+  "originalAuthor": "HDTianRu",
+  "author": "SatellIta",
   "license": "ISC",
   "dependencies": {
     "openai": "^4.83.0",
     "lodash": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SatellIta/chat-plugin.git"
   }
 }

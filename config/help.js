@@ -26,12 +26,16 @@ export const helpList = [{
   group: '基本命令',
   list: [{
     icon: 71,
-    title: '#chat',
+    title: '#chat [对话内容]',
     desc: '如题，主动与ai聊天'
   }, {
     icon: 74,
     title: '#结束对话',
     desc: '如题，结束本群/私聊对话，清除对话缓存'
+  }, {
+    icon: 72,
+    title: '#省流|总结',
+    desc: '对群内的聊天记录进行总结'
   }]
 }, {
   group: '管理命令，仅主人可用',

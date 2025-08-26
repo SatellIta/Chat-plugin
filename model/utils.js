@@ -1,3 +1,7 @@
+/*
+* 工具函数
+*/
+
 //Powered by Cluade
 export const split = (responseText) => {
   function escapeRegex(str) {
@@ -76,4 +80,21 @@ export const split = (responseText) => {
   }
 
   return finalResultChunks;
+}
+
+// 用于延迟
+export const sleep = async (time) => {
+  return new Promise(e => setTimeout(e, time))
+}
+
+// 用于撤回消息
+export const recall = async (e, promise, time) => {
+  const res = await promise
+  if (!res.message_id || !time) return
+  if (e.group?.recallMsg)
+    setTimeout(() =>
+      e.group.recallMsg(res.message_id), time * 1000) 
+  else if (e.friend?.recallMsg)
+    setTimeout(() =>
+      e.friend.recallMsg(res.message_id), time * 1000)
 }

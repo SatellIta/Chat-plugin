@@ -65,9 +65,6 @@ export function supportGuoba() {
           }
         },
 
-        // ==================================================
-        //  新增：总结配置区域
-        // ==================================================
         {
           label: '总结配置 (省流)',
           component: 'SOFT_GROUP_BEGIN'
@@ -92,7 +89,29 @@ export function supportGuoba() {
             placeholder: "你现在是qq群聊里面的群聊助手，负责总结聊天记录和提取关键信息..."
           }
         },
-        // ==================================================
+        {
+          field: 'summaryMaxTokens',
+          label: '总结最大 Token 数',
+          bottomHelpMessage: '总结时使用的最大 Token 数',
+          component: "InputNumber",
+          componentProps: {
+            min: 1,
+            max: 4096,
+            placeholder: "1024"
+          }
+        },
+        {
+          field:'summaryTemperature',
+          label: '总结温度',
+          bottomHelpMessage: '总结时使用的温度设置',
+          component: "InputNumber",
+          componentProps: {
+            min: 0.1,
+            max: 2,
+            step: 0.1,
+            placeholder: "0.3"
+          }
+        },
 
         {
           label: '伪人配置',
