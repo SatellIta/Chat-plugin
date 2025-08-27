@@ -35,7 +35,7 @@ export default class summarize extends plugin {
 
   // 处理聊天记录
   async processChatHistory(e) {
-    e.recall(e, e.reply('正在努力总结中，请稍候...', true), 30) // true 表示会引用用户消息
+    recall(e, e.reply('正在努力总结中，请稍候...', true), 30) // true 表示会引用用户消息
     try {
       // 获取总结系统提示词
       const prompt = Cfg.get('summaryPrompt', '', e)
