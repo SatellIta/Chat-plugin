@@ -1,138 +1,157 @@
 import Cfg from '../model/Cfg.js'
 import OpenAI from '../model/openai.js'
 import {
-  pluginName
-} from '../config/constant.js'
-import {
   recall
 } from '../model/utils.js'
 
+const KEY_PREFIX = 'chat-plugin:chatHistory:'
+const EIGHT_HOURS_IN_SECONDS = 8 * 60 * 60
+
 // 总结类
 export default class summarize extends plugin {
-  constructor(e) {
+  constructor() {
     super({
       name: 'Summarize',
-      priority: 1919810,
+      dsc: '总结最近的聊天记录',
+      priority: 1145,
       rule: [{
           reg: '^#(省流|总结)$',
-          fnc: 'summarize'
+          fnc: 'summarizeChat'
         },
+        {
+          reg: '^#查看聊天记录$',
+          fnc: 'viewChatHistory',
+          permission: 'master'
+        }
       ]
     })
-    this.e = e
-    this.redisKeyPrefix = `${pluginName}:summarize:`
   }
 
   // 处理省流命令
-  async summarize(e) {
+  async summarizeChat(e) {
     if(e.isGroup) {
+      recall(e, await e.reply('正在努力总结中，请稍后'), 30)
       this.processChatHistory(e)
     }
     else {
       e.reply('请在群聊中使用此命令😄')
+      return true
     }
+  }
+
+  // 处理查看聊天记录命令
+  async viewChatHistory(e) {
+    if (!e.isGroup) {
+      e.reply('请在群聊中使用此命令😄')
+      return true
+    }
+    const chatHistory = await this.getRecentMessages(e.group_id, 'group')
+    e.reply(`在过去的8小时内，群聊中共有 ${chatHistory.length} 条记录~\n`)
+    e.reply(chatHistory.map(msg => `- ${msg.content}`).join('\n'))
+    e.reply('以上是最近的聊天记录')
+
+    return true
   }
 
   // 处理聊天记录
   async processChatHistory(e) {
-    recall(e, e.reply('正在努力总结中，请稍候...', true), 30) // true 表示会引用用户消息
     try {
-      // 获取总结系统提示词
-      const prompt = Cfg.get('summaryPrompt', '', e)
-      let messages = [{
-        role: 'system',
-        content: prompt
-      }]
+      const promptMessages = this.buildPromptMessages(e)
+      const chatHistory = await this.getRecentMessages(e.group_id, 'group')
+      const messages = []
 
-      // 获取聊天记录
-      const chatHistory = await this.getChatHistory(e)
-      //console.log(chatHistory)
-
-      if (chatHistory.length === 0) {
-        e.reply('没有最近的聊天记录可以总结哦~')
+      if (!chatHistory || chatHistory.length === 0) {
+        await e.reply('在过去的8小时内没有找到聊天记录。')
         return true
       }
-      messages = messages.concat(chatHistory)
 
-      // 构造请求信息
-      const requestOptions = {
-        messages: messages,
-        model: Cfg.get('model', 'gpt-3.5-turbo', e),
-        temperature: Cfg.get('summaryTemperature', 0.7, e),
-        max_tokens: Cfg.get('summaryMaxTokens', 1000, e)
-      }
+      messages.push(...promptMessages)
+      messages.push(...chatHistory)
+      const summary = await this.getChatSummary(e, messages)
+      const replyMsg = `${summary}`
 
-      const response = await OpenAI.chat(requestOptions)
-
-      if (!response) {
-        e.reply('AI 响应失败，请稍后再试')
-        return false
-      }
-
-      e.reply(`省流小助手总结如下：\n\n${response.trim()}`)
-
+      await e.reply(replyMsg)
     } catch (error) {
-      logger.error(`[${pluginName}] 聊天处理错误 省流(模式): ${error.message || error}`)
-      e.reply(`处理失败: ${error.message || '未知错误'}`)
-
-      return false
+      logger.error('总结聊天记录时出错:', error)
+      await e.reply('处理时发生错误，请查看后台日志。')
     }
+
+    return true
   }
 
-  // 获取聊天记录
-  async getChatHistory(e) {
-    const summaryHistoryCount = Cfg.get('summaryHistoryCount', 50, e)
-    let history = []
+  /**
+   * 从Redis获取并过滤最近的聊天记录 (从 Sorted Set 获取)
+   * @param {string} id 群号或用户ID
+   * @param {'group' | 'private'} type 对话类型
+   * @returns {Promise<Array<object>>} 消息对象数组
+   */
+  async getRecentMessages (id, type = 'group') {
+    const key = `${KEY_PREFIX}${type}:${id}`
+    
+    // 从 Sorted Set 中按分数（时间戳）从低到高获取所有记录
+    // ZRANGE key min max
+    // zRange返回的是一个数组
+    const rawMessages = await redis.zRange(key, 0, -1)
 
-    if (summaryHistoryCount <= 0) {
-      return history
+    if (!rawMessages || rawMessages.length === 0) {
+      return []
     }
 
-    try {
-      let rawHistory = []
-      const fetchCount = Math.min(summaryHistoryCount + 10, 100)
-      rawHistory = await e.group.getChatHistory(0, fetchCount)  // null 或 0 代表从最新的消息往前追溯
-   
-      history = rawHistory
-        .map(msg => this.formatHistoryMessage(e, msg))
-        .filter(Boolean)
-        .slice(-summaryHistoryCount)
-    } catch (error) {
-      logger.error(`[${pluginName}] 获取聊天记录失败: ${error.message || error}`)
-    }
-
-    return history
-  }
-  
-  // 格式化聊天记录
-  formatHistoryMessage(e, msg) {
-    // 忽略非文本、空消息或命令消息
-    if (!msg || !msg.message || typeof msg.raw_message !== 'string' || !msg.raw_message.trim() || msg.raw_message.startsWith('#')) {
-      return null
-    }
-
-    const isBot = msg.user_id == e.self_id
-    let role = isBot ? 'assistant' : 'user'
-    let senderPrefix = ''
-    let content = msg.raw_message.trim()
-    // 过滤机器人自己发的提示性信息
-    if (isBot && (content.includes('正在努力总结中') || content.includes('省流小助手总结如下：') || content.includes('没有最近的聊天记录'))) {
-      return null
-    }
-
-    if (role === 'user' && content) {
-      senderPrefix = `${msg.sender.card || msg.sender.nickname}: `
+    const processHistory = []
+    for (const rawMsg of rawMessages) {
+      try {
+        const message = JSON.parse(rawMsg)
+        // 转换为聊天记录的格式
+        processHistory.push(
+          `(${message.time})${message.nickname}: ${message.msg}\n`
+        )
+      } catch (error) {
+        logger.warn('解析Redis中的聊天记录失败:', error)
       }
-
-    if (role === 'assistant' && content.startsWith(`${Cfg.get('aiName', 'AI助手', e)}: `)) {
-      content = content.substring(`${Cfg.get('aiName', 'AI助手', e)}: `.length).trim()
     }
 
-    if (!content) return null
+    const validMessages = []
+    validMessages.push({
+      role: 'user',
+      content: `${processHistory}`
+    })
+    
+    // console.log(validMessages) 调试信息
+    return validMessages
+  }
 
-    return {
-      role: role,
-      content: `${senderPrefix}${content}`
+  // 构建提示消息，添加系统提示词
+  buildPromptMessages(e) {
+    let messages = []
+    const systemPrompt = Cfg.get('summaryPrompt', '', e)
+
+    if (systemPrompt) {
+    messages.push({
+      role: 'system',
+      content: `${systemPrompt}`
+    })
+    } else {
+      throw new Error('未找到系统提示词，请检查cfg_default.json')
     }
+
+    return messages
+  }
+
+  // 将构建好的信息发送到大模型，并返回总结消息
+  async getChatSummary(e, messages) {
+    const requestOptions = {
+      messages: messages,
+      model: Cfg.get('model', 'gpt-3.5-turbo', e),
+      temperature: Cfg.get('summaryTemperature', 0.3, e),
+      max_tokens: Cfg.get('summaryMaxTokens', 1024, e)
+    }
+
+    if (!requestOptions.model || !requestOptions.messages || requestOptions.messages.length === 0) {
+      throw new Error('请求参数获取不完整, 请检查cfg_default.json')
+    }
+
+    const response = await OpenAI.chat(requestOptions)
+
+    return response
   }
 }

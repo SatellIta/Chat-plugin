@@ -8,12 +8,17 @@ import {
   recall,
   sleep
 } from '../model/utils.js'
+import {
+  saveMessageToRedis
+} from '../apps/chatHistory.js'
+
+const SUMMARY_KEY_PREFIX = 'chat-plugin:chatHistory:'
 
 export default class chat extends plugin {
   constructor(e) {
     super({
       name: 'OpanAI-Chat',
-      priority: 114514,
+      priority: 1145,
       rule: [{
           reg: '^#chat',
           fnc: 'chatCommand'
@@ -239,6 +244,14 @@ export default class chat extends plugin {
           content: finalResponse
         })
         this.updateCache(e, cacheKey, messages)
+
+        const messageData = {
+          user_id: ' ',  // 先留空，这里应该读取bot自己的qq号
+          nickname: Cfg.get('aiName', 'AI助手', e),
+          msg: finalResponse,
+          time: Math.floor(Date.now() / 1000)
+        }
+        await saveMessageToRedis(e, messageData, SUMMARY_KEY_PREFIX)
       }
 
       const msgs = split(finalResponse)
